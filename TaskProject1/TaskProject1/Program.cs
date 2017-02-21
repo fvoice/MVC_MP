@@ -18,6 +18,7 @@ namespace TaskProject1
 		//private static string _baseUri = "https://en.wikipedia.org/";
 		private static bool _useAsync = true;
 		private static int _maxLevel = 1;
+		private static int _chunkSize = 50;
 
 		private static string _htmlContentType = "text/html";
 		private static string _xmlContentType = "text/xml";
@@ -27,11 +28,13 @@ namespace TaskProject1
 		private static bool _onlyBaseDomain = true;
 		private static string _baseDomain;
 
+		private static Dictionary<string, string> _urlCache = new Dictionary<string, string>();
+
 		private static readonly object ModifyLock = new object();
 
 		static void Main(string[] args)
-		{
-			_path = DateTime.Now.Ticks.ToString();
+		{;
+		_path = string.Format("C:\\Sites\\{0}", DateTime.Now.Ticks);
 			Directory.CreateDirectory(_path);
 
 			if (_onlyBaseDomain)
@@ -55,18 +58,17 @@ namespace TaskProject1
 			await Download(url);
 		}
 
-		public static async Task<string> Download(string uriString, string subDirName = "", int level = 0)
+		public static async Task<string> Download(string uriString, string subDirName = "", string webRelPath = "", int level = 0)
 		{
 			if (level > _maxLevel) return _problemLink;
-			if (_onlyBaseDomain && !uriString.StartsWith(_baseDomain)) return _problemLink;
-
-			level++;
-
+			
 			Uri uri = NormalizeUri(uriString);
 
-			var winPath = Path.Combine(_path, subDirName);
-
-			Directory.CreateDirectory(winPath);
+			if (_urlCache.ContainsKey(uri.AbsoluteUri))
+			{
+				return _urlCache[uri.AbsoluteUri];
+			}
+			
 			string name = _problemLink;
 
 			try
@@ -83,8 +85,11 @@ namespace TaskProject1
 					{
 						name = GetFileName(uri, content);
 
+						var winPath = Path.Combine(_path, subDirName);
+						Directory.CreateDirectory(winPath);
+
 						string fileName = string.Format("{0}\\{1}", winPath, name);
-						//Console.WriteLine("Saving to {0}", fileName);
+						Console.WriteLine("Saving to {0}", fileName);
 
 						if (content.Headers.ContentType.MediaType.Contains(_htmlContentType))
 						{
@@ -103,7 +108,8 @@ namespace TaskProject1
 			{
 				WriteError(e.Message);
 			}
-			var newUri = string.Format("{0}/{1}", subDirName, name);
+			var newUri = string.Format("{0}/{1}", webRelPath, name);
+			_urlCache[uri.AbsoluteUri] = newUri;
 			return newUri;
 		}
 
@@ -123,39 +129,60 @@ namespace TaskProject1
 			var linkElements = root.Select("link");
 			var aElements = root.Select("a");
 
-			List<Tuple<IDomElement, string>> elementsList =
-				imgElements.Elements.Select(x => new Tuple<IDomElement, string>(x, "src")).ToList();
-			elementsList.AddRange(linkElements.Elements.Select(x => new Tuple<IDomElement, string>(x, "href")));
-			elementsList.AddRange(aElements.Elements.Select(x => new Tuple<IDomElement, string>(x, "href")));
+			List<Tuple<IDomElement, string, int>> elementsList = imgElements.Elements.Select(x => new Tuple<IDomElement, string, int>(x, "src", level)).ToList();
+			elementsList.AddRange(linkElements.Elements
+				.Where(x => x.HasAttribute("rel") && x.Attributes["rel"] == "stylesheet")
+				.Select(x => new Tuple<IDomElement, string, int>(x, "href", level)));
+			if (level < _maxLevel)
+			{
+				elementsList.AddRange(_onlyBaseDomain
+					? aElements.Elements.Where(x => x.Attributes["href"].StartsWith(_baseDomain))
+						.Select(x => new Tuple<IDomElement, string, int>(x, "href", level + 1))
+					: aElements.Elements.Select(x => new Tuple<IDomElement, string, int>(x, "href", level + 1)));
+			}
 
 			try
 			{
 				if (_useAsync)
 				{
 					Random random = new Random();
-					await Task.WhenAll(elementsList.Select(x =>
+					bool continueMark = true;
+					while (continueMark)
 					{
-						return Task.Run(async () =>
+						if (elementsList.Count == 0)
 						{
-							try
+							continueMark = false;
+							continue;
+						}
+						var chunkCount = elementsList.Count > _chunkSize ? _chunkSize : elementsList.Count;
+						var chunk = elementsList.Take(chunkCount).ToList();
+						elementsList.RemoveRange(0, chunkCount);
+
+						await Task.WhenAll(chunk.Select(x =>
+						{
+							return Task.Run(async () =>
 							{
-								await Task.Delay(random.Next(100, 3000)); //looks like some sites can consider such active work as dangerous behavior, let's add some times
-								var src = x.Item1.Attributes[x.Item2];
-								if (!string.IsNullOrEmpty(src))
+								try
 								{
-									var newVal = await Download(src, Path.Combine(subDirName, Guid.NewGuid().ToString()), level);
-									lock (ModifyLock)
+									//await Task.Delay(random.Next(100, 3000)); //looks like some sites can consider such active work as dangerous behavior, let's add some times
+									var src = x.Item1.Attributes[x.Item2];
+									if (!string.IsNullOrEmpty(src))
 									{
-										x.Item1.SetAttribute(x.Item2, newVal);
+										var relPath = Guid.NewGuid().ToString();
+										var newVal = await Download(src, Path.Combine(subDirName, relPath), relPath, x.Item3);
+										lock (ModifyLock)
+										{
+											x.Item1.SetAttribute(x.Item2, newVal);
+										}
 									}
 								}
-							}
-							catch (Exception e)
-							{
-								WriteError(e.Message);
-							}
-						});
-					}));
+								catch (Exception e)
+								{
+									WriteError(e.Message);
+								}
+							});
+						}));	
+					}
 				}
 				else
 				{
@@ -164,7 +191,8 @@ namespace TaskProject1
 						try
 						{
 							var src = tuple.Item1.Attributes[tuple.Item2];
-							var newVal = await Download(src, Path.Combine(subDirName, Guid.NewGuid().ToString()), level);
+							var relPath = Guid.NewGuid().ToString();
+							var newVal = await Download(src, Path.Combine(subDirName, relPath), relPath, tuple.Item3);
 							lock (ModifyLock)
 							{
 								tuple.Item1.SetAttribute(tuple.Item2, newVal);
