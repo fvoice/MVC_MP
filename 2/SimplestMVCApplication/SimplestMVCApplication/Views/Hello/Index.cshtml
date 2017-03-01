@@ -1,0 +1,18 @@
+﻿@model SimplestMVCApplication.Models.FIO
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Hello @Model.Surname @Model.Name</h2>
+
+<ul>
+	@foreach (var detail in Model.Details)
+	{
+		<li>@detail</li>
+	}
+</ul>
+
+@Html.ActionLink("Edit", "Edit", new {id = Model.Id})
+<br/>
+<a href="/Hello/Edit?id=@Model.Id">Edit with a</a>
+

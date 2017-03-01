@@ -1,0 +1,23 @@
+﻿@model WebApplication3.Models.Person
+
+@{
+    ViewBag.Title = "Index";
+}
+
+@TempData["z"];
+
+<h2>Hello @Model.Name from view!</h2>
+
+<ul>
+	@foreach (var detail in Model.Details)
+	{
+		<li>@detail</li>
+	}
+</ul>
+
+@using(Html.BeginForm("AddDetail", "Person", FormMethod.Post))
+{
+	@Html.TextBox("Detail")
+	<input type="submit" value="Add detail"/>
+}
+

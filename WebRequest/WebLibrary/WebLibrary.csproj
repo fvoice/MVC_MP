@@ -42,20 +42,29 @@
   <ItemGroup>
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Modules\EventsModule.cs">
+      <SubType>Code</SubType>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Handlers\AspHandler.ashx.cs">
       <DependentUpon>AspHandler.ashx</DependentUpon>
     </Compile>
-    <None Include="Web.config" />
-    <Compile Include="Handlers\CounterHandler.cs" />
-    <Compile Include="RouteHandlers\SayHelloRouteHandler.cs" />
+    <Compile Include="RouteHandlers\SayHelloRouteHandler.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Global.asax">
+      <SubType>Code</SubType>
+    </Content>
     <Content Include="Handlers\AspHandler.ashx" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Global.asax" />
+    <None Include="Web.config">
+      <SubType>Code</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
