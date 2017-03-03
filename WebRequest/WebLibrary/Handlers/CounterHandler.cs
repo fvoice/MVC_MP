@@ -1,4 +1,5 @@
-﻿using System.Web;
+﻿using System;
+using System.Web;
 using System.Web.SessionState;
 
 namespace WebLibrary.Handlers
@@ -15,6 +16,7 @@ namespace WebLibrary.Handlers
 
 			context.Response.ContentType = "text/html";
 			context.Response.Write(string.Format("<H1>Current number is {0}</H1>", val));
+			context.Response.Write(string.Format("<H1>Domain id is {0}</H1>", AppDomain.CurrentDomain.Id));
 		}
 
 		public bool IsReusable

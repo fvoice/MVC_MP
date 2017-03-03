@@ -40,10 +40,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Page.cshtml" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Handlers\CounterHandler.cs" />
     <Compile Include="Modules\EventsModule.cs">
       <SubType>Code</SubType>
     </Compile>

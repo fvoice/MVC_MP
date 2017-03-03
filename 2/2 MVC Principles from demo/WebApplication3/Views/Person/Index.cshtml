@@ -4,8 +4,6 @@
     ViewBag.Title = "Index";
 }
 
-@TempData["z"];
-
 <h2>Hello @Model.Name from view!</h2>
 
 <ul>
@@ -18,6 +16,14 @@
 @using(Html.BeginForm("AddDetail", "Person", FormMethod.Post))
 {
 	@Html.TextBox("Detail")
-	<input type="submit" value="Add detail"/>
+	<input id="submit" type="submit" value="Add detail"/>
 }
 
+@section scripts
+{
+	<script type="text/javascript">
+		$(function() {
+			$("#submit").val("Add detail from jQuery!");
+		})
+	</script>
+}
